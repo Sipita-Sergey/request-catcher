@@ -28,8 +28,12 @@ PAUSE = 1.2     # между запросами, чтобы не ловить ф
 def read_phrases():
     if not config.PHRASES_FILE.exists():
         return []
-    return [l.strip() for l in config.PHRASES_FILE.read_text(encoding="utf-8").splitlines()
-            if l.strip() and not l.startswith("#")]
+    out = []
+    for line in config.PHRASES_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip().strip('"«»“”').strip()    # кавычки вокруг фразы ловец ставит сам
+        if line and not line.startswith("#"):
+            out.append(line)
+    return out
 
 
 async def search_phrase(client, query, limit, min_date):

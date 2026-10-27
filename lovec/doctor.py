@@ -62,7 +62,7 @@ def check(offline):
     phrases = []
     if config.PHRASES_FILE.exists():
         phrases = [l for l in config.PHRASES_FILE.read_text(encoding="utf-8").splitlines()
-                   if l.strip() and not l.startswith("#")]
+                   if l.strip() and not l.strip().startswith("#")]
     add("phrases", "Есть хотя бы 5 поисковых фраз", len(phrases) >= 5, "agent",
         "составить и проверить фразы (шаг «Фразы»)", "фраз: %d" % len(phrases))
 
@@ -91,14 +91,18 @@ def main():
     offline = "--offline" in sys.argv
     items = check(offline)
     nxt = next((i["key"] for i in items if not i["ok"]), None)
+    # если следующий пункт за человеком, а его сейчас нет, — первый красный из тех, что делает агент
+    nxt_agent = next((i["key"] for i in items if not i["ok"] and i["who"] == "agent"), None)
     if "--json" in sys.argv:
-        print(json.dumps({"next": nxt, "items": items}, ensure_ascii=False, indent=1))
+        print(json.dumps({"next": nxt, "next_agent": nxt_agent, "items": items}, ensure_ascii=False, indent=1))
         return 0
     for i in items:
         print("%s %-52s %s%s" % ("✅" if i["ok"] else "⬜", i["title"],
                                  ("[" + i["detail"] + "] ") if i["detail"] else "",
                                  "" if i["ok"] else "→ " + i["hint"] + " (" + ("тебе" if i["who"] == "human" else "сделаю сам") + ")"))
     print("\nСледующий шаг: %s" % (nxt or "всё готово 🎉"))
+    if nxt_agent and nxt_agent != nxt:
+        print("Если человека сейчас нет рядом, можно делать без него: %s" % nxt_agent)
     return 0
 
 
