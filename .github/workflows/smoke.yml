@@ -13,6 +13,12 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
         python: ["3.9", "3.12"]
+        exclude:
+          - os: ubuntu-latest      # на свежей Ubuntu у GitHub нет 3.9
+            python: "3.9"
+        include:
+          - os: ubuntu-latest
+            python: "3.10"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

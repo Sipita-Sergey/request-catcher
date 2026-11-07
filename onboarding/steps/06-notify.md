@@ -15,7 +15,7 @@
    вставляем. Команда для человека:
 
    ```bash
-   cd <КОМПЛЕКТ> && ./lovec/set-secret.sh TG_BOT_TOKEN
+   cd <КОМПЛЕКТ> && <PY> lovec/secret.py TG_BOT_TOKEN
    ```
 
    Он увидит `✅ TG_BOT_TOKEN записан в data/.env`. Если токен всё-таки попал в чат, скажи вслух, что
@@ -26,13 +26,13 @@
 ## Б. Куда слать (делаешь ты)
 
 ```bash
-cd <КОМПЛЕКТ> && ./venv/bin/python lovec/notify.py setup
+cd <КОМПЛЕКТ> && <PY> lovec/notify.py setup
 ```
 
 Печатает `chat_id=123456789 (имя)`. Запиши его:
 
 ```bash
-cd <КОМПЛЕКТ> && ./venv/bin/python lovec/envset.py TG_NOTIFY_CHAT <chat_id>
+cd <КОМПЛЕКТ> && <PY> lovec/envset.py TG_NOTIFY_CHAT <chat_id>
 ```
 
 **Личка с ботом** это основной вариант: проще и надёжнее. **Группа с темами** тоже возможна, если у
@@ -44,7 +44,7 @@ cd <КОМПЛЕКТ> && ./venv/bin/python lovec/envset.py TG_NOTIFY_CHAT <chat_
 ## В. Проверка
 
 ```bash
-cd <КОМПЛЕКТ> && ./venv/bin/python lovec/notify.py test
+cd <КОМПЛЕКТ> && <PY> lovec/notify.py test
 ```
 
 Спроси человека: «пришло сообщение "Ловец запросов подключён"?» Только его «да» закрывает шаг
@@ -57,6 +57,6 @@ cd <КОМПЛЕКТ> && ./venv/bin/python lovec/notify.py test
 |---|---|
 | `notify.py setup`: «боту пока никто не писал» | человек не нажал Start или открыл не того бота |
 | `Forbidden: bot can't initiate conversation` | то же самое |
-| `Unauthorized` | токен введён с ошибкой: повторить `set-secret.sh TG_BOT_TOKEN` |
+| `Unauthorized` | токен введён с ошибкой: повторить `<PY> lovec/secret.py TG_BOT_TOKEN` |
 | `setup` пуст, хотя Start нажат | у бота включён webhook или его уже читает другая программа: создать для ловца нового бота |
 | сообщение в группу не уходит | бот не админ в группе с ограничениями, либо `chat_id` без минуса |

@@ -9,7 +9,7 @@
 1. **Поставить скиллы в офис:**
 
    ```bash
-   cd <КОМПЛЕКТ> && ./venv/bin/python lovec/install_skills.py <папка-офиса>
+   cd <КОМПЛЕКТ> && <PY> lovec/install_skills.py <папка-офиса>
    ```
 
    Ставит `lovec-setup` (повторная настройка и починка) и `lovec-daily` (повседневная работа) в

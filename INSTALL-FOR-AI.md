@@ -11,8 +11,9 @@
 
 ## Шаг 0. Есть ли у тебя терминал или доступ к файлам компьютера?
 
-Ловец живёт на компьютере: ему нужны Python, расписание и Claude Code. В браузерном чате его не
-поставить. Не знаешь точно, есть ли у тебя терминал, выполни простую команду (`echo ok`). Не вышло:
+Ловец живёт на компьютере (Windows, Mac или Linux, сервер не нужен): ему нужны Python, расписание и
+любая нейросеть с доступом к компьютеру — Claude Code, Codex, Gemini CLI или ключ API. В браузерном
+чате его не поставить. Не знаешь точно, есть ли у тебя терминал, выполни простую команду (`echo ok`). Не вышло:
 у тебя его нет.
 
 **Терминала нет.** Ответь пользователю ровно этим сообщением, ничего не добавляя:
@@ -31,7 +32,8 @@
   появятся ключи и вход в его Телеграм, их нельзя смешивать со снапшотами офиса.
 - Офиса нет: `~/request-catcher`.
 
-Windows: нужен WSL (Ubuntu). Без него не ставь, а скажи пользователю об этом словами.
+Windows: ставь прямо в Windows, WSL не нужен. Место — `%USERPROFILE%\request-catcher`.
+Команды в PowerShell соединяй `;`, а не `&&` (в старом PowerShell `&&` не работает).
 
 ## Шаг 2. Скачай комплект
 
@@ -40,7 +42,7 @@ git clone https://github.com/Sipita-Sergey/request-catcher.git ~/request-catcher
 ```
 
 Нет `git`: скачай `https://github.com/Sipita-Sergey/request-catcher/archive/refs/heads/main.zip`,
-распакуй, папку назови `request-catcher`.
+распакуй, папку назови `request-catcher` (на Windows: `Invoke-WebRequest` + `Expand-Archive` в PowerShell).
 
 ## Шаг 3. Передай управление онбордингу
 
@@ -60,7 +62,7 @@ git clone https://github.com/Sipita-Sergey/request-catcher.git ~/request-catcher
    важная часть: от фраз зависит, найдёт ловец клиентов или болтовню.
 
 Всё остальное делаешь ты. **Ключи, токен бота и код входа в чат не принимай:** они вводятся
-командами `set-secret.sh` и `login.sh` скрытым вводом, мимо тебя.
+командами `lovec/secret.py` и `lovec/login.py code` скрытым вводом, мимо тебя.
 
 ## Правила ответа
 
@@ -76,4 +78,4 @@ cd ~/request-catcher && git pull
 ```
 
 Если в офисе стоят скиллы ловца, после обновления повтори
-`./venv/bin/python lovec/install_skills.py <папка-офиса>`.
+`<PY> lovec/install_skills.py <папка-офиса>`.

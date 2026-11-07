@@ -203,6 +203,8 @@ def _api(prompt, model):
 def _cmd(prompt):
     raw = config.get("LOVEC_LLM_CMD") or ""
     cmd = shlex.split(raw, posix=not config.IS_WINDOWS)
+    if config.IS_WINDOWS:   # в режиме Windows shlex оставляет кавычки внутри: "C:\\...\\python.exe"
+        cmd = [c[1:-1] if len(c) > 1 and c[0] == c[-1] and c[0] in "\"'" else c for c in cmd]
     if not cmd:
         raise LLMError("LOVEC_LLM_CMD пуст")
     res = _run(cmd, prompt, _sandbox())

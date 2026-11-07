@@ -1,5 +1,18 @@
 # Что менялось
 
+## 0.2.0: 07.11.2026
+- **Windows без WSL.** Установка `setup.py`, скрытый ввод `secret.py` и `login.py code` на Python —
+  одинаково на Windows, Mac, Linux. Расписание на Windows — Планировщик заданий. Русский текст в
+  консоли Windows больше не падает.
+- **Любая нейросеть для оценки** (`lovec/llm.py`): Claude Code, Codex (подписка ChatGPT), Gemini CLI,
+  Qwen Code, любой API в формате OpenAI (OpenAI, DeepSeek, OpenRouter, Polza, локальная Ollama) или
+  своя команда. Ловец сам находит, что установлено; выбрать явно — `LOVEC_LLM`.
+- Codex запускается без личного `~/.codex/config.toml`: там бывает модель, которой нет на тарифе.
+- Скиллы в офис ставятся и в `.agents/skills/`, если в офисе есть `AGENTS.md` (Codex).
+- Автотест на Windows, macOS и Linux (`tests/smoke.py`, GitHub Actions).
+- Пункт doctor `claude` переименован в `llm`. Старые `setup.sh`, `set-secret.sh`, `login.sh` остались
+  обёртками.
+
 ## 0.1.1: 28.10.2026
 В README и инструкцию установки добавлено, что человеку придётся самому выбрать поисковые фразы (около
 40 минут вместо 20 на всю настройку).
