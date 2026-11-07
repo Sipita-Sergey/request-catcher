@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Вход ловца в Телеграм.
 
-Код из Телеграма и облачный пароль вводит ЧЕЛОВЕК, они не проходят через агента: их читает
-login.sh через скрытый ввод и отдаёт сюда по stdin. Ловец только читает (поиск и список
+Код из Телеграма и облачный пароль вводит ЧЕЛОВЕК, они не проходят через агента: `login.py code`
+и `login.py password`, запущенные в терминале, спрашивают их скрытым вводом (Windows, Mac, Linux).
+Не из терминала — читают stdin. Ловец только читает (поиск и список
 чатов): сообщений от твоего имени не отправляет, в чаты не вступает.
 
   login.py request     отправить код в Телеграм (нужны TG_API_ID, TG_API_HASH, TG_PHONE)
-  login.py code        код со stdin
-  login.py password    облачный пароль (если включён) со stdin
+  login.py code        спросит код скрыто (или возьмёт со stdin)
+  login.py password    спросит облачный пароль скрыто (если он включён)
   login.py status      [--json] есть ли вход и под кем
   login.py chats       [--json] в каких группах состоит аккаунт: именно там ищет ловец
 
@@ -15,6 +16,7 @@ login.sh через скрытый ввод и отдаёт сюда по stdin.
 · 2 — не хватает настроек.
 """
 import asyncio
+import getpass
 import json
 import os
 import sys
@@ -41,7 +43,14 @@ def client():
 def lock_session_file():
     p = str(config.SESSION) + ".session"
     if os.path.exists(p):
-        os.chmod(p, 0o600)
+        config.lock_file(p)
+
+
+def hidden(prompt):
+    """Скрытый ввод в терминале; если запущены не из терминала — значение со stdin."""
+    if sys.stdin.isatty():
+        return getpass.getpass(prompt)
+    return sys.stdin.read()
 
 
 async def request():
@@ -57,14 +66,14 @@ async def request():
         return 0
     sent = await c.send_code_request(phone)
     STATE.write_text(json.dumps({"phone": phone, "hash": sent.phone_code_hash}), encoding="utf-8")
-    os.chmod(STATE, 0o600)
+    config.lock_file(STATE)
     await c.disconnect()
     print("✅ код отправлен в Телеграм на номер %s (придёт в приложение, не смс)" % phone)
     return 0
 
 
 async def code():
-    value = sys.stdin.read().strip().replace(" ", "")
+    value = hidden("Код из Телеграма (на экране ничего не появится), затем Enter: ").strip().replace(" ", "")
     if not value or not STATE.exists():
         print("⛔ нет кода или не запрошен: сначала `login.py request`")
         return 2
@@ -75,7 +84,7 @@ async def code():
         await c.sign_in(phone=st["phone"], code=value, phone_code_hash=st["hash"])
     except errors.SessionPasswordNeededError:
         await c.disconnect()
-        print("🔐 включён облачный пароль — нужен ещё он (`login.sh password`)")
+        print("🔐 включён облачный пароль — нужен ещё он (`login.py password`)")
         return 3
     except errors.PhoneCodeInvalidError:
         await c.disconnect()
@@ -94,7 +103,7 @@ async def code():
 
 
 async def password():
-    value = sys.stdin.read().rstrip("\n")
+    value = hidden("Облачный пароль Телеграма (на экране ничего не появится), затем Enter: ").rstrip("\r\n")
     if not value:
         print("⛔ пароль пустой")
         return 2

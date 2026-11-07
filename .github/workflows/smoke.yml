@@ -1,0 +1,27 @@
+name: smoke
+# Дымовой тест на Windows, macOS и Linux: установка, doctor, оценка через API и свою команду,
+# скрытый ввод секрета, прогон с журналом, расписание (ставит и снимает). Без Телеграма.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        python: ["3.9", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Установка (setup.py)
+        run: python setup.py
+      - name: Дымовой тест
+        env:
+          LOVEC_SMOKE_SCHEDULE: "1"
+        run: python tests/smoke.py

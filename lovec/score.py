@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Оценка найденного: балл готовности 0-100, причина и готовый заход.
 
-Тот же Claude, что у тебя в Claude Code, вызывается неинтерактивно (`claude -p`) пачками и
-возвращает строгий JSON. Перед моделью идёт грубый предфильтр без неё: пустое, самореклама,
+Оценивает та нейросеть, что есть у человека (Claude Code, Codex, Gemini, API в формате OpenAI
+или своя команда — выбор в llm.py): пачками, ответ — строгий JSON. Перед моделью идёт грубый предфильтр без неё: пустое, самореклама,
 сообщения без признаков запроса получают низкий балл сразу — модель разбирает только похожих
 на ищущих. Так экономится лимит подписки.
 
@@ -11,11 +11,11 @@
   score.py [сколько-максимум-оценить]
 """
 import json
-import subprocess
 import sys
 
 import config
 import db
+import llm
 
 BATCH = 15
 HOT_FROM = 40           # с этого балла лид переоценивает сильная модель — ради текста захода
@@ -89,39 +89,37 @@ def niche_block():
            + config.NICHE_FILE.read_text(encoding="utf-8")[:4000]
 
 
-def ask_model(batch, model):
+def ask_model(batch, tier):
     """batch: список dict(id, chat, text). Возвращает список ответов модели или None при сбое."""
-    claude = config.find_claude()
-    if not claude:
-        print("⛔ не нашёл claude CLI (установи Claude Code или задай LOVEC_CLAUDE_BIN)")
-        return None
     payload = json.dumps([{"id": r["id"], "chat": r["chat"], "text": r["text"][:TEXT_LIMIT]}
                           for r in batch], ensure_ascii=False)
     prompt = RUBRIC + niche_block() + "\n\nКандидаты:\n" + payload
-    sandbox = config.DATA / "sandbox"        # пустая папка: чтобы claude не подтянул инструкции офиса
-    sandbox.mkdir(parents=True, exist_ok=True)
-    cmd = [claude, "-p", "--model", model, "--tools", "", "--no-session-persistence",
-           "--disable-slash-commands", "--setting-sources", "user"]
     try:
-        res = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                             timeout=600, cwd=str(sandbox))
-    except subprocess.TimeoutExpired:
-        print("   модель не ответила за 10 минут — пачка пропущена")
+        out = llm.ask(prompt, tier).strip()
+    except llm.LLMError as e:
+        print("   " + ("лимит подписки: " if e.limit else "") + str(e)[:300])
         return None
-    out = res.stdout.strip()
     start, end = out.find("["), out.rfind("]")
     if start == -1 or end == -1:
-        print("   модель вернула не JSON:", (out or res.stderr.strip())[:200])
+        print("   модель вернула не JSON:", out[:200])
         return None
     try:
-        return json.loads(out[start:end + 1])
+        data = json.loads(out[start:end + 1])
     except json.JSONDecodeError as e:
         print("   JSON не разобрался:", e)
         return None
+    return [x for x in data if isinstance(x, dict)] if isinstance(data, list) else None
+
+
+def to_score(item):
+    try:
+        return max(0, min(100, int(float(item.get("score", 0)))))
+    except (TypeError, ValueError):
+        return 0
 
 
 def save(conn, url, item):
-    score = max(0, min(100, int(item.get("score", 0))))
+    score = to_score(item)
     conn.execute("UPDATE leads SET score=?, band=?, risk=?, rationale=?, scenario=?, scored_at=? WHERE url=?",
                  (score, band_of(score), item.get("risk", "🟢 Низкий"), item.get("rationale", ""),
                   item.get("scenario", ""), db.now_utc(), url))
@@ -129,7 +127,13 @@ def save(conn, url, item):
 
 def main():
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else config.get_int("LOVEC_MAX_SCORE_PER_RUN", 150)
-    bulk, hot_model = config.get("LOVEC_MODEL_BULK"), config.get("LOVEC_MODEL_HOT")
+    backend, where = llm.choose()
+    if not backend:
+        print("⛔ " + where)
+        return 1
+    bulk = llm.model_for(backend, "bulk") or backend
+    hot_model = llm.model_for(backend, "hot") or backend
+    print("оценивает: %s" % llm.TITLES[backend])
     conn = db.open_db()
     rows = conn.execute("SELECT * FROM leads WHERE scored_at IS NULL ORDER BY posted_at DESC").fetchall()
 
@@ -153,7 +157,7 @@ def main():
     for i in range(0, len(todo), BATCH):
         batch = todo[i:i + BATCH]
         by_id = {r["id"]: r for r in batch}
-        answer = ask_model(batch, bulk)
+        answer = ask_model(batch, "bulk")
         if not answer:
             failed += 1
             if failed >= 2:
@@ -167,15 +171,17 @@ def main():
                 continue
             save(conn, r["url"], item)
             done += 1
-            if max(0, min(100, int(item.get("score", 0)))) >= HOT_FROM:
+            if to_score(item) >= HOT_FROM:
                 hot.append(r)
         conn.commit()
         print("оценено (%s): %d из %d, на переоценку сильной моделью: %d" % (bulk, done, len(todo), len(hot)))
 
+    if llm.model_for(backend, "hot") == llm.model_for(backend, "bulk"):
+        hot = []        # одна и та же модель: заход уже написан в первом проходе, второй — лишний расход
     for i in range(0, len(hot), BATCH):
         batch = hot[i:i + BATCH]
         by_id = {r["id"]: r for r in batch}
-        answer = ask_model(batch, hot_model)
+        answer = ask_model(batch, "hot")
         if not answer:
             continue
         for item in answer:

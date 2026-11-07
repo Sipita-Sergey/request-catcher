@@ -13,6 +13,7 @@ import sys
 
 import config
 import db
+import llm
 import schedule as sched
 
 PLACEHOLDER = "<<ЗАПОЛНИТЬ"
@@ -32,10 +33,11 @@ def check(offline):
     except ImportError:
         have_telethon = False
     add("deps", "Зависимости установлены (venv + telethon)", have_telethon, "agent",
-        "запустить setup.sh", "")
-    claude = config.find_claude()
-    add("claude", "Найден claude CLI (им оценивается находка)", claude, "human",
-        "установить Claude Code и войти в него", claude or "")
+        "запустить setup.py", "")
+    brain = llm.describe()
+    add("llm", "Есть нейросеть для оценки находок", brain["ok"], "human",
+        "нужна любая из: Claude Code, Codex (ChatGPT), Gemini CLI, API-ключ или своя команда (шаг «Установка»)",
+        ("%s · %s" % (brain["title"], brain["where"])) if brain["ok"] else brain["detail"])
 
     niche_ok = config.NICHE_FILE.exists() and PLACEHOLDER not in config.NICHE_FILE.read_text(encoding="utf-8")
     add("niche", "Профиль ниши заполнен (data/niche.md)", niche_ok, "agent",
@@ -47,14 +49,14 @@ def check(offline):
     authorized, groups = False, 0
     if have_telethon and api_ok and not offline:
         res = subprocess.run([sys.executable, str(config.ROOT / "lovec" / "login.py"), "status", "--json"],
-                             capture_output=True, text=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace")
         try:
             info = json.loads(res.stdout.strip().splitlines()[-1])
             authorized, groups = info.get("authorized", False), info.get("groups", 0)
         except (ValueError, IndexError):
             pass
     add("tg_login", "Вход в Телеграм выполнен", authorized, "human",
-        "ввести код из Телеграма (login.sh code)", "офлайн-режим, не проверялось" if offline else "")
+        "ввести код из Телеграма (login.py code)", "офлайн-режим, не проверялось" if offline else "")
     add("chats", "Аккаунт состоит в тематических группах (лучше 10+)", groups >= 1, "human",
         "вступить в чаты своей ниши — ловец ищет только там, где ты состоишь",
         "групп: %d%s" % (groups, "" if groups >= 10 or not groups else ", маловато — улова будет мало"))
@@ -80,8 +82,8 @@ def check(offline):
     add("schedule", "Расписание установлено", s["installed"], "agent",
         "schedule.py install", s["detail"])
     office = config.get("LOVEC_OFFICE")
-    office_ok = bool(office) and (office == "none" or (
-        (Path(office) / ".claude/skills/lovec-daily/SKILL.md").exists()))
+    office_ok = bool(office) and (office == "none" or any(
+        (Path(office) / d / "lovec-daily/SKILL.md").exists() for d in (".claude/skills", ".agents/skills")))
     add("office", "Встроен в офис (скиллы и заметка) либо отмечено «офиса нет»", office_ok, "agent",
         "шаг «Офис»: install_skills.py <папка-офиса>", office or "")
     return items

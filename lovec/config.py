@@ -1,8 +1,22 @@
 """Пути и настройки ловца. Всё, что принадлежит человеку (ключи, вход в Телеграм, найденное),
 лежит в data/ и в git не попадает. Код — только в lovec/."""
 import os
+import platform
 import shutil
+import sys
 from pathlib import Path
+
+IS_WINDOWS = platform.system() == "Windows"
+
+# Windows по умолчанию пишет в консоль в cp1251/cp866: русский текст и эмодзи там падают с
+# UnicodeEncodeError. Переводим вывод на UTF-8, а дочерним процессам ставим тот же режим.
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get("LOVEC_DATA") or ROOT / "data")
@@ -15,8 +29,9 @@ STATE_FILE = DATA / "setup-state.md"
 LOG_FILE = DATA / "run.log"
 
 DEFAULTS = {
-    "LOVEC_MODEL_BULK": "haiku",        # массовый разбор: задача простая
-    "LOVEC_MODEL_HOT": "sonnet",        # заход в личку у горячих пишет модель посильнее
+    # LOVEC_LLM — чем оценивать: claude | codex | gemini | qwen | api | cmd. Пусто — сам находит,
+    # что установлено (порядок в llm.py). LOVEC_MODEL_BULK / LOVEC_MODEL_HOT — модели этой нейросети
+    # для массового разбора и для горячих; пусто — умолчание выбранной нейросети (llm.py).
     "LOVEC_LOOKBACK_DAYS": "7",         # новая фраза: сколько дней истории взять в первый раз
     "LOVEC_PER_PHRASE": "100",          # максимум сообщений на фразу за прогон
     "LOVEC_MAX_SCORE_PER_RUN": "150",   # потолок обращений к модели за прогон
@@ -67,23 +82,58 @@ def set_value(key, value):
                  if not l.startswith(key + "=")]
     lines.append("%s=%s" % (key, value))
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.chmod(ENV_FILE, 0o600)
+    lock_file(ENV_FILE)
 
 
-def find_claude():
-    """Путь к claude CLI. Из крона PATH урезан, поэтому смотрим и привычные места."""
-    explicit = get("LOVEC_CLAUDE_BIN")
-    if explicit and Path(explicit).exists():
-        return explicit
-    found = shutil.which("claude")
+def lock_file(path):
+    """Права «только владелец». На Windows chmod почти ничего не значит — там файл и так в
+    профиле пользователя, ошибку не считаем поломкой."""
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def venv_python():
+    """Python окружения ловца: на Mac/Linux venv/bin/python, на Windows venv\\Scripts\\python.exe."""
+    win = ROOT / "venv" / "Scripts" / "python.exe"
+    nix = ROOT / "venv" / "bin" / "python"
+    if win.exists():
+        return win
+    if nix.exists():
+        return nix
+    return Path(sys.executable)
+
+
+def find_bin(name, env_key=None):
+    """Путь к программе (claude, codex, gemini, qwen). Из расписания PATH урезан, поэтому
+    смотрим и привычные места установки на Mac, Linux и Windows."""
+    if env_key:
+        explicit = get(env_key)
+        if explicit and Path(explicit).exists():
+            return explicit
+    found = shutil.which(name)
     if found:
         return found
     home = Path.home()
-    for cand in (home / ".local/bin/claude", home / ".claude/local/claude",
-                 Path("/usr/local/bin/claude"), Path("/opt/homebrew/bin/claude")):
+    cands = [home / ".local/bin" / name, home / (".%s/local" % name) / name,
+             Path("/usr/local/bin") / name, Path("/opt/homebrew/bin") / name,
+             home / ".npm-global/bin" / name]
+    if IS_WINDOWS:
+        appdata = Path(os.environ.get("APPDATA") or home / "AppData/Roaming")
+        local = Path(os.environ.get("LOCALAPPDATA") or home / "AppData/Local")
+        for base in (appdata / "npm", home / ".local/bin", local / "Programs" / name,
+                     home / (".%s/local" % name)):
+            for ext in (".exe", ".cmd", ".bat", ""):
+                cands.append(base / (name + ext))
+    for cand in cands:
         if cand.exists():
             return str(cand)
     return None
+
+
+def find_claude():
+    return find_bin("claude", "LOVEC_CLAUDE_BIN")
 
 
 def active_hours():

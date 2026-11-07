@@ -5,12 +5,12 @@
   run.py --force      игнорировать активные часы
   run.py --no-search  только оценить и уведомить то, что уже в базе
   run.py --dry-run    уведомления не отправлять, а показать
+  run.py --log        писать вывод в data/run.log (так запускает расписание на любой системе)
 
 Страховки: замок (прогоны не накладываются), раз в сутки короткая сводка (чтобы тишина не
 выглядела как «сломалось»), раз в сутки тревога, если поиск или оценка не работают.
 """
 import argparse
-import fcntl
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -22,13 +22,29 @@ import notify
 HERE = config.ROOT / "lovec"
 
 
+def try_lock(f):
+    """Замок: два прогона не накладываются. fcntl есть только на Mac/Linux, на Windows — msvcrt."""
+    try:
+        if config.IS_WINDOWS:
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
 def log(msg):
     line = "[%s] %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
     print(line, flush=True)
 
 
 def step(script, *args):
-    res = subprocess.run([sys.executable, str(HERE / script), *args], capture_output=True, text=True)
+    res = subprocess.run([sys.executable, str(HERE / script), *args], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
     out = (res.stdout + res.stderr).strip()
     if out:
         print(out, flush=True)
@@ -64,13 +80,14 @@ def main():
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--no-search", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--log", action="store_true")
     args = ap.parse_args()
 
     config.DATA.mkdir(parents=True, exist_ok=True)
-    lock = open(config.DATA / "run.lock", "w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    if args.log or sys.stdout is None:     # pythonw на Windows запускается без консоли
+        sys.stdout = sys.stderr = open(config.LOG_FILE, "a", encoding="utf-8", buffering=1)
+    lock = open(config.DATA / "run.lock", "a+")
+    if not try_lock(lock):
         log("прогон пропущен — предыдущий ещё идёт")
         return 0
 
@@ -92,8 +109,8 @@ def main():
     score_rc = step("score.py")
     if score_rc:
         alert_once_a_day(conn, "alert_score_day",
-                         "⚠️ <b>Ловец не может оценивать находки.</b>\nЧаще всего упёрлись в лимит подписки Claude "
-                         "или не найден claude CLI. Найденное не потеряется — оценю в следующий прогон.", args.dry_run)
+                         "⚠️ <b>Ловец не может оценивать находки.</b>\nЧаще всего кончился лимит подписки нейросети "
+                         "или она не найдена. Найденное не потеряется — оценю в следующий прогон.", args.dry_run)
     log("3/3 уведомления")
     notify.run(dry_run=args.dry_run)
     daily_digest(conn, args.dry_run)

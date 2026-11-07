@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Встроить ловца в офис человека: поставить два скилла в <офис>/.claude/skills/.
+"""Встроить ловца в офис человека: поставить два скилла в <офис>/.claude/skills/ (Claude Code),
+а если в офисе есть AGENTS.md (Codex и другие) — ещё и в <офис>/.agents/skills/.
 
   install_skills.py <папка-офиса> [--dry-run]
 
@@ -31,17 +32,21 @@ def main():
     if office == config.ROOT or config.ROOT in office.parents:
         sys.exit("⛔ это папка самого комплекта, а нужна папка ОФИСА (где лежит его CLAUDE.md)")
     version = (config.ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    roots = [office / ".claude" / "skills"]
+    if (office / "AGENTS.md").exists():
+        roots.append(office / ".agents" / "skills")
     for name, src in SKILLS.items():
-        dest = office / ".claude" / "skills" / name
         text = src.read_text(encoding="utf-8").replace("{{LOVEC_HOME}}", str(config.ROOT))
-        print("%s %s → %s" % ("[dry-run]" if dry else "ставлю", name, dest))
-        if dry:
-            continue
-        if dest.exists():
-            shutil.rmtree(dest)
-        dest.mkdir(parents=True)
-        (dest / "SKILL.md").write_text(text, encoding="utf-8")
-        (dest / "VERSION").write_text(version + "\n", encoding="utf-8")
+        for root in roots:
+            dest = root / name
+            print("%s %s → %s" % ("[dry-run]" if dry else "ставлю", name, dest))
+            if dry:
+                continue
+            if dest.exists():
+                shutil.rmtree(dest)
+            dest.mkdir(parents=True)
+            (dest / "SKILL.md").write_text(text, encoding="utf-8")
+            (dest / "VERSION").write_text(version + "\n", encoding="utf-8")
     if not dry:
         config.set_value("LOVEC_OFFICE", str(office))
         print("✅ скиллы установлены (версия %s), офис записан в data/.env" % version)
