@@ -53,9 +53,16 @@ def send(text, dry_run=False):
 
 
 def lead_text(r):
-    who = ("<a href=\"https://t.me/%s\">@%s</a>" % (r["author_username"], r["author_username"])
-           if r["author_username"] else
-           "без ника (%s)" % html.escape(r["author_name"] or str(r["author_id"])))
+    vk = (r["source"] if "source" in r.keys() else "tg") == "vk"
+    if vk and r["author_username"]:
+        who = "<a href=\"https://vk.com/%s\">%s</a>" % (html.escape(r["author_username"], quote=True),
+                                                        html.escape(r["author_name"] or r["author_username"]))
+    elif vk:
+        who = "автор скрыт сообществом — ответ в комментариях под постом"
+    elif r["author_username"]:
+        who = "<a href=\"https://t.me/%s\">@%s</a>" % (r["author_username"], r["author_username"])
+    else:
+        who = "без ника (%s)" % html.escape(r["author_name"] or str(r["author_id"]))
     snippet = html.escape((r["text"] or "").replace("\n", " ").strip()[:350])
     parts = ["🔥 <b>Новый запрос — %d баллов</b>" % r["score"],
              "%s · %s · %s" % (db.to_local(r["posted_at"]), html.escape(r["chat"] or "чат"), who),

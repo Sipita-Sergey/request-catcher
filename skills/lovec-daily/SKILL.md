@@ -11,6 +11,9 @@ description: >
 
 # Ловец запросов — повседневная работа
 
+Ловец ищет в группах Телеграма (фразы `data/phrases.txt`, проверка `search.py --probe`) и в открытых
+записях ВКонтакте (фразы `data/vk_phrases.txt`, проверка `vk.py --probe`, ключ — `vk.py check`).
+
 Ловец лежит в `{{LOVEC_HOME}}`, личное (ключи, вход в Телеграм, база) в `{{LOVEC_HOME}}/data/`.
 Все команды ниже запускаются так: `cd {{LOVEC_HOME}} && <PY> lovec/<скрипт>`, где `<PY>` — Python
 ловца: `./venv/bin/python` на Mac/Linux, `venv\Scripts\python.exe` на Windows (в PowerShell вместо

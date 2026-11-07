@@ -50,7 +50,8 @@ def main():
 
     data = HERE / "data"
     data.mkdir(exist_ok=True)
-    for src, dst in (("templates/niche.md", "niche.md"), ("templates/phrases.example.txt", "phrases.txt")):
+    for src, dst in (("templates/niche.md", "niche.md"), ("templates/phrases.example.txt", "phrases.txt"),
+                     ("templates/vk_phrases.example.txt", "vk_phrases.txt")):
         if not (data / dst).exists():
             shutil.copyfile(HERE / src, data / dst)
     envf = data / ".env"

@@ -105,6 +105,12 @@ def main():
             alert_once_a_day(conn, "alert_search_day",
                              "⚠️ <b>Ловец не может искать в Телеграме.</b>\nЧаще всего слетел вход — открой своего "
                              "помощника и скажи «настрой ловца» (он увидит, что не так).", args.dry_run)
+    if not args.no_search and config.get("VK_TOKEN"):
+        log("1б поиск во ВКонтакте")
+        if step("vk.py"):
+            alert_once_a_day(conn, "alert_vk_day",
+                             "⚠️ <b>Ловец не может искать во ВКонтакте.</b>\nЧаще всего устарел ключ ВК — открой "
+                             "помощника и скажи «настрой ловца» (он увидит, что не так).", args.dry_run)
     log("2/3 оценка")
     score_rc = step("score.py")
     if score_rc:

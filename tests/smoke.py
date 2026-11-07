@@ -125,6 +125,29 @@ def main():
     env_text = (DATA / ".env").read_text(encoding="utf-8") if (DATA / ".env").exists() else ""
     check("secret.py записывает секрет в data/.env", rc == 0 and "TG_BOT_TOKEN=123:abc" in env_text, out)
 
+    rc, out = run(["lovec/secret.py", "VK_TOKEN"],
+                  stdin=b"https://oauth.vk.com/blank.html#access_token=vk1.a.TEST_123&expires_in=0&user_id=1\n")
+    env_text = (DATA / ".env").read_text(encoding="utf-8")
+    check("secret.py VK_TOKEN достаёт ключ из адресной строки", rc == 0 and "VK_TOKEN=vk1.a.TEST_123\n" in env_text, out)
+
+    vkt = DATA / "vk_lead.py"
+    vkt.write_text(
+        "import sys; sys.path.insert(0, 'lovec'); import vk, db, notify\n"
+        "item = {'owner_id': -5, 'id': 7, 'date': 1762500000, 'text': 'Девочки, посоветуйте мастера маникюра'}\n"
+        "lead = vk.to_lead(item, {}, {5: {'name': 'Подслушано'}}, 'посоветуйте мастера')\n"
+        "assert lead['url'] == 'https://vk.com/wall-5_7', lead\n"
+        "c = db.open_db()\n"
+        "c.execute(\"INSERT OR REPLACE INTO leads(url,chat,author_id,author_username,author_name,text,posted_at,phrase,found_at,source,score,prefiltered) VALUES(?,?,?,?,?,?,datetime('now'),?,datetime('now'),'vk',80,0)\", "
+        "(lead['url'], lead['chat'], lead['author_id'], lead['author_username'], lead['author_name'], lead['text'], lead['phrase']))\n"
+        "c.commit()\n"
+        "r = c.execute('select * from leads where url=?', (lead['url'],)).fetchone()\n"
+        "t = notify.lead_text(r)\n"
+        "assert 'ВК · Подслушано' in t and 'комментариях' in t and 'vk.com/wall-5_7' in t, t\n"
+        "c.execute('delete from leads where url=?', (lead['url'],)); c.commit()\n"
+        "print('ok')\n", encoding="utf-8")
+    rc, out = run([str(vkt)])
+    check("ВК: запись превращается в находку и уведомление", rc == 0 and "ok" in out, out)
+
     seed()
     rc, out = run(["lovec/run.py", "--force", "--no-search", "--dry-run", "--log"], cmd)
     log = (DATA / "run.log").read_text(encoding="utf-8") if (DATA / "run.log").exists() else ""

@@ -23,6 +23,7 @@
 | `lovec/schedule.py` | расписание (cron на Linux, LaunchAgent на Mac) |
 | `lovec/login.py` | вход в Телеграм; код и пароль вводятся скрыто |
 | `lovec/secret.py`, `envset.py` | запись секретов (скрыто) и настроек в `data/.env` |
+| `lovec/vk.py` | поиск во ВКонтакте: открытые записи всего ВК по фразам из `data/vk_phrases.txt` |
 | `lovec/llm.py` | чем оценивать: Claude Code, Codex, Gemini CLI, Qwen Code, API в формате OpenAI, своя команда |
 | `onboarding/` | пошаговая настройка для помощника в твоём офисе |
 | `skills/lovec-daily/` | повседневный скилл |

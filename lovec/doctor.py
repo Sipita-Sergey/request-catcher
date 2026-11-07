@@ -68,6 +68,17 @@ def check(offline):
     add("phrases", "Есть хотя бы 5 поисковых фраз", len(phrases) >= 5, "agent",
         "составить и проверить фразы (шаг «Фразы»)", "фраз: %d" % len(phrases))
 
+    vk_off = config.get("LOVEC_VK") == "none"
+    vk_ok = vk_off or bool(config.get("VK_TOKEN"))
+    vk_phr = 0
+    vk_file = config.DATA / "vk_phrases.txt"
+    if vk_file.exists():
+        vk_phr = len([l for l in vk_file.read_text(encoding="utf-8").splitlines()
+                      if l.strip() and not l.strip().startswith("#")])
+    add("vk", "ВКонтакте: ключ и фразы (или отмечено «без ВК»)", vk_off or (vk_ok and vk_phr >= 3), "human",
+        "получить ключ ВК и составить фразы (шаг «ВКонтакте»); без ВК: envset.py LOVEC_VK none",
+        "без ВК" if vk_off else ("ключ %s, фраз: %d" % ("есть" if vk_ok else "нет", vk_phr)))
+
     add("bot", "Бот для уведомлений (токен)", bool(config.get("TG_BOT_TOKEN")), "human",
         "создать бота в @BotFather и записать токен (шаг «Уведомления»)", "")
     add("chat_id", "Адрес доставки уведомлений известен", bool(config.get("TG_NOTIFY_CHAT")), "agent",

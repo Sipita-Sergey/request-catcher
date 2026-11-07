@@ -5,7 +5,7 @@ import sys
 
 import config
 
-SECRET = {"TG_API_HASH", "TG_BOT_TOKEN", "LOVEC_API_KEY"}
+SECRET = {"TG_API_HASH", "TG_BOT_TOKEN", "LOVEC_API_KEY", "VK_TOKEN"}
 
 if len(sys.argv) != 3:
     sys.exit(__doc__)

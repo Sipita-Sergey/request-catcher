@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS leads (
     chat TEXT, author_id INTEGER, author_username TEXT, author_name TEXT,
     text TEXT, posted_at TEXT, phrase TEXT, found_at TEXT,
     score INTEGER, band TEXT, risk TEXT, rationale TEXT, scenario TEXT,
-    scored_at TEXT, prefiltered INTEGER DEFAULT 0, notified_at TEXT
+    scored_at TEXT, prefiltered INTEGER DEFAULT 0, notified_at TEXT, source TEXT DEFAULT 'tg'
 );
 CREATE INDEX IF NOT EXISTS leads_score ON leads(score);
 CREATE INDEX IF NOT EXISTS leads_posted ON leads(posted_at);
@@ -42,6 +42,10 @@ def open_db():
     conn = sqlite3.connect(str(DB_FILE))
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(leads)")}
+    if "source" not in cols:                 # база от версии до 0.3: добавить площадку
+        conn.execute("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'tg'")
+        conn.commit()
     return conn
 
 
